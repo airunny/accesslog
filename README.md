@@ -2,7 +2,7 @@
 A middleware to record the access logs for http roundtrip. The recording proccess is asynchronous so you don't need to worry about big log contents will block the http roundtrip.
 
 ## install 
-go get github.com/ryandeng/accesslog
+go get github.com/liyanbing/accesslog
 
 ## features
 * the format of each line is `nanotimestamp, method, URI, request header, request body (only for application/json), status, response body, response body (only for application/json), response length, elapsed time`
