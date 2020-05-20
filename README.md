@@ -1,24 +1,24 @@
 # accesslog
-A middleware to record the access logs for http roundtrip. The recording proccess is asynchronous so you don't need to worry about big log contents will block the http roundtrip.
 
-## install 
+## 安装 
 go get github.com/liyanbing/accesslog
 
-## features
-* the format of each line is `nanotimestamp, method, URI, request header, request body (only for application/json), status, response body, response body (only for application/json), response length, elapsed time`
-* least memory allocation
-* automatically rotate log (the threshold is 1800MB)
-* write log contents asynchronously
-* only if request-body is used and response is written can write request.body and response to log
-
-## example
-
+## 使用 
 ```go
+package main
+
+import (
+	"encoding/json"
+    "net/http"
+
+    "github.com/liyanbing/accesslog"
+)
+
 func main() {
 	conf := &accesslog.Conf{
-		Filename:     "./access/example.log", // the access log dir+name, dir will be generated if it doesn't exist
-		RequestBody:  true, // whether to record request body (only for application/json)
-		ResponseBody: true, // whether to record response body (only for application/json)
+		Filename:     "./access/example.log", 
+		RequestBody:  true, 
+		ResponseBody: true, 
 	}
 
 	mux := http.NewServeMux()
@@ -32,7 +32,7 @@ func main() {
 	})
 
 	http.ListenAndServe(":8080", accesslog.Handler(conf, mux))
+
+    accesslog.Flush()
 }
 ```
-
-If you are using some gracedown http framework, you can call `accesslog.Flush()` to flush the contents to the disk in your gracedown procedure.
