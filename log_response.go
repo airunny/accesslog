@@ -52,13 +52,18 @@ func (c *commonLogRespWriter) Write(b []byte) (int, error) {
 		c.recordBody = c.recordBody && canRecordBody(c.w.Header())
 	}
 
-	if c.recordBody && c.size+len(b) <= c.buf.Cap() {
-		c.buf.Write(b)
+	n :=len(b)
+	if c.recordBody &&  n >0{
+		bucket := c.buf.Cap() - c.buf.Len()
+		if bucket >n {
+			c.buf.Write(b)
+			c.size += n
+		}else{
+			c.buf.Write(b[:bucket])
+			c.size += bucket
+		}
 	}
-
-	size, err := c.w.Write(b)
-	c.size += size
-	return size, err
+	return  c.w.Write(b)
 }
 
 func (c *commonLogRespWriter) WriteHeader(code int) {

@@ -11,12 +11,12 @@ import (
 )
 
 // the max log size
-const maxSize int64 = 1024 * 1024 * 1800
+const MaxLogFileSize int64 = 1024 * 1024 * 1800
 
 type logger interface {
 	Log(buf *bytes.Buffer) error
 	Close() error
-	QueueBufferSize() int // 内部队列的长度，方便监控使用
+	QueueBufferSize() int
 }
 
 type asyncFileLogger struct {
@@ -29,16 +29,21 @@ type asyncFileLogger struct {
 
 func newAsyncFileLogger(cfg *Conf) (logger, error) {
 	dir, _ := filepath.Split(cfg.Filename)
-	os.MkdirAll(dir, 0755)
+	err :=os.MkdirAll(dir, 0755)
+	if err != nil {
+		return nil,err
+	}
 
 	f, err := openAppendFile(cfg.Filename)
 	if err != nil {
 		return nil, err
 	}
+
 	stat, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
+
 	ret := &asyncFileLogger{
 		filename: cfg.Filename,
 		file:     f,
@@ -57,8 +62,7 @@ func openAppendFile(fileName string) (*os.File, error) {
 }
 
 func (l *asyncFileLogger) Log(buf *bytes.Buffer) error {
-	l.queue.Enqueue(buf)
-	return nil
+	return l.queue.Enqueue(buf)
 }
 
 func (l *asyncFileLogger) loop() {
@@ -68,26 +72,27 @@ func (l *asyncFileLogger) loop() {
 			return
 		default:
 		}
+
 		buf, err := l.queue.Dequeue()
 		if err != nil {
-			// 队列是空时返回error，sleep 一会儿
 			time.Sleep(time.Millisecond * 10)
 			continue
 		}
 		l.writeFile(buf.(*bytes.Buffer))
 	}
-
 }
 
 func (l *asyncFileLogger) writeFile(buf *bytes.Buffer) {
-	if int64(buf.Len())+l.sizeNum > maxSize {
+	if int64(buf.Len())+l.sizeNum > MaxLogFileSize {
 		l.rotateLog()
 	}
+
 	n, err := l.file.Write(buf.Bytes())
 	logBufPool.Put(buf)
 	if err != nil {
 		panic("cannot write access log")
 	}
+
 	l.sizeNum += int64(n)
 }
 
@@ -103,10 +108,12 @@ func (l *asyncFileLogger) rotateLog() {
 	if err != nil {
 		panic(err)
 	}
+
 	stat, err := l.file.Stat()
 	if err != nil {
 		panic(err)
 	}
+
 	l.sizeNum = stat.Size()
 }
 

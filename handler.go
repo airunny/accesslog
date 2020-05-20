@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	logBufMax  = 1 << 13 // 8KB
-	bodyBufMax = 1 << 12 // 4KB
+	logBufMax  = 1 << 10 // 1KB
+	bodyBufMax = 1 << 10 // 1KB
 )
 
 var (
@@ -116,9 +116,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer bodyBufPool.Put(respBodyBuf)
 
 	wrapResponse := newResponseWriter(w, respBodyBuf, atomic.LoadInt32(&respBody) == 1)
-	url := *req.URL
 	h.handler.ServeHTTP(wrapResponse, req)
-	logBuf := fmtLog(req, url, start, reqBody, wrapResponse)
+	logBuf := fmtLog(req, *req.URL, start, reqBody, wrapResponse)
 	logging.Log(logBuf)
 }
 
@@ -230,9 +229,13 @@ func canRecordBody(header http.Header) bool {
 	switch ct {
 	case "application/json":
 		return true
+	case "application/x-www-form-urlencoded":
+		return true
+	case "application/xml":
+		return true
 	case "text/plain":
 		return true
-	case "application/x-www-form-urlencoded":
+	case "text/xml":
 		return true
 	default:
 		return false
