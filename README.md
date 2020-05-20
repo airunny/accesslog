@@ -3,6 +3,13 @@
 ## 安装 
 go get github.com/liyanbing/accesslog
 
+## 记录日志的 request 跟 Response Content-Type
+* application/json
+* application/x-www-form-urlencoded
+* application/xml
+* text/plain
+* text/xml
+
 ## 使用 
 ```go
 package main
