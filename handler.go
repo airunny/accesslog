@@ -178,7 +178,7 @@ func fmtLog(req *http.Request, u url.URL, start time.Time, wrapRequestBody logRe
 		if req.ContentLength != int64(reqBodySize) {
 			buf.WriteString("{too large to display}")
 		} else {
-			body,_ := json.Marshal(wrapRequestBody.Body())
+			body,_ := json.Marshal(string(wrapRequestBody.Body()))
 			buf.Write(body)
 		}
 	} else {
