@@ -150,7 +150,7 @@ func newGlogLogger() logger {
 
 func (g GlogLogger) Log(buf *bytes.Buffer) error {
 	newBuf := bytes.NewBuffer(nil)
-	_ = json.NewEncoder(newBuf).Encode(newBuf.String())
+	_ = json.NewEncoder(newBuf).Encode(buf.String())
 	glog.Info(newBuf.String())
 	return nil
 }
