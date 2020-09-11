@@ -2,6 +2,7 @@ package accesslog
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -177,8 +178,8 @@ func fmtLog(req *http.Request, u url.URL, start time.Time, wrapRequestBody logRe
 		if req.ContentLength != int64(reqBodySize) {
 			buf.WriteString("{too large to display}")
 		} else {
-
-			buf.Write(wrapRequestBody.Body())
+			body,_ := json.Marshal(wrapRequestBody.Body())
+			buf.Write(body)
 		}
 	} else {
 		buf.WriteString("{no data}")
