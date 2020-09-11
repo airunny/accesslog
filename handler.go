@@ -63,12 +63,11 @@ func SetLogging(log logger) {
 	logging = log
 }
 
-func Handler(h http.Handler,opts ... Option) http.Handler {
+func Handler(h http.Handler, opts ...Option) http.Handler {
 	options := &Options{}
 	for _, opt := range opts {
 		opt(options)
 	}
-
 
 	var err error
 	if options.cfg != nil {
@@ -84,7 +83,7 @@ func Handler(h http.Handler,opts ... Option) http.Handler {
 		if options.cfg.ResponseBody {
 			respBody = 1
 		}
-	}else {
+	} else {
 		logging = newGlogLogger()
 		reqBody = 1
 		respBody = 1
@@ -178,8 +177,8 @@ func fmtLog(req *http.Request, u url.URL, start time.Time, wrapRequestBody logRe
 		if req.ContentLength != int64(reqBodySize) {
 			buf.WriteString("{too large to display}")
 		} else {
-			body := strings.Replace(strings.Replace(string(wrapRequestBody.Body()),"\n","",-1)," ","",-1)
-			buf.Write([]byte(body))
+
+			buf.Write(wrapRequestBody.Body())
 		}
 	} else {
 		buf.WriteString("{no data}")

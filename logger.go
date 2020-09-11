@@ -2,6 +2,7 @@ package accesslog
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/golang/glog"
 	"os"
@@ -88,7 +89,9 @@ func (l *asyncFileLogger) writeFile(buf *bytes.Buffer) {
 		l.rotateLog()
 	}
 
-	n, err := l.file.Write(buf.Bytes())
+	newBuf := bytes.NewBuffer(nil)
+	_ = json.NewEncoder(newBuf).Encode(buf.String())
+	n, err := l.file.Write(newBuf.Bytes())
 	logBufPool.Put(buf)
 	if err != nil {
 		panic("cannot write access log")
@@ -146,7 +149,9 @@ func newGlogLogger() logger {
 }
 
 func (g GlogLogger) Log(buf *bytes.Buffer) error {
-	glog.Info(buf.String())
+	newBuf := bytes.NewBuffer(nil)
+	_ = json.NewEncoder(newBuf).Encode(newBuf.String())
+	glog.Info(newBuf.String())
 	return nil
 }
 

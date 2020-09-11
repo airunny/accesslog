@@ -1,12 +1,12 @@
 package accesslog
 
 type Options struct {
-	cfg * Conf
+	cfg *Conf
 }
 
-type Option func(opt * Options)
+type Option func(opt *Options)
 
-func LoggerOption(cfg * Conf) Option {
+func LoggerOption(cfg *Conf) Option {
 	return func(opt *Options) {
 		opt.cfg = cfg
 	}
