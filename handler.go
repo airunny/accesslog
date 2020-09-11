@@ -59,18 +59,34 @@ func SwitchRespBody(b bool) {
 	}
 }
 
-func Handler(cfg *Conf, h http.Handler) http.Handler {
+func SetLogging(log logger) {
+	logging = log
+}
+
+func Handler(h http.Handler,opts ... Option) http.Handler {
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+
 	var err error
-	logging, err = newAsyncFileLogger(cfg)
-	if err != nil {
-		panic(err)
-	}
+	if options.cfg != nil {
+		logging, err = newAsyncFileLogger(options.cfg)
+		if err != nil {
+			panic(err)
+		}
 
-	if cfg.RequestBody {
+		if options.cfg.RequestBody {
+			reqBody = 1
+		}
+
+		if options.cfg.ResponseBody {
+			respBody = 1
+		}
+	}else {
+		logging = newGlogLogger()
 		reqBody = 1
-	}
-
-	if cfg.ResponseBody {
 		respBody = 1
 	}
 

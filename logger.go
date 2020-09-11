@@ -3,6 +3,7 @@ package accesslog
 import (
 	"bytes"
 	"fmt"
+	"github.com/golang/glog"
 	"os"
 	"path/filepath"
 	"time"
@@ -29,9 +30,9 @@ type asyncFileLogger struct {
 
 func newAsyncFileLogger(cfg *Conf) (logger, error) {
 	dir, _ := filepath.Split(cfg.Filename)
-	err :=os.MkdirAll(dir, 0755)
+	err := os.MkdirAll(dir, 0755)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	f, err := openAppendFile(cfg.Filename)
@@ -135,4 +136,25 @@ func (l *asyncFileLogger) Close() error {
 Done:
 	l.file.Sync()
 	return l.file.Close()
+}
+
+// glog
+type GlogLogger struct{}
+
+func newGlogLogger() logger {
+	return GlogLogger{}
+}
+
+func (g GlogLogger) Log(buf *bytes.Buffer) error {
+	glog.Info(buf.String())
+	return nil
+}
+
+func (g GlogLogger) Close() error {
+	glog.Flush()
+	return nil
+}
+
+func (g GlogLogger) QueueBufferSize() int {
+	return 0
 }

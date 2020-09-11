@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/ryandeng/accesslog"
+	"github.com/liyanbing/accesslog"
 )
 
 func main() {
@@ -24,5 +24,5 @@ func main() {
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	http.ListenAndServe(":8080", accesslog.Handler(conf, mux))
+	http.ListenAndServe(":8080", accesslog.Handler( mux,accesslog.LoggerOption(conf)))
 }

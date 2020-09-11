@@ -27,11 +27,11 @@ func newLogReqBody(body io.ReadCloser, buf *bytes.Buffer, recordBody bool) logRe
 
 func (r *commonReqBody) Read(p []byte) (n int, err error) {
 	n, err = r.body.Read(p)
-	if r.recordBody && n > 0{
+	if r.recordBody && n > 0 {
 		bucket := r.buf.Cap() - r.buf.Len()
-		if bucket >n{
+		if bucket > n {
 			r.buf.Write(p[0:n])
-		}else{
+		} else {
 			r.buf.Write(p[0:bucket])
 		}
 	}

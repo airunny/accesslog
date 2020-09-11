@@ -25,7 +25,7 @@ func TestHandler(t *testing.T) {
 		ResponseBody: false,
 	}
 	defer os.Remove(filename)
-	ts := httptest.NewServer(Handler(cfg, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	ts := httptest.NewServer(Handler( http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		_, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			w.WriteHeader(400)
@@ -33,7 +33,7 @@ func TestHandler(t *testing.T) {
 		}
 		w.Header().Add("Content-type", "application/json")
 		w.Write([]byte(`{"name": "peter", "age": 12}`))
-	})))
+	}),LoggerOption(cfg)))
 	defer ts.Close()
 
 	resp, err := http.Post(ts.URL, "application/json", strings.NewReader(`{"user": "admin"}`))
