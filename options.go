@@ -1,13 +1,41 @@
 package accesslog
 
-type Options struct {
-	cfg *Conf
+type options struct {
+	filename     string
+	requestBody  bool
+	responseBody bool
+	log          Logger
 }
 
-type Option func(opt *Options)
+func defaultOptions() *options {
+	return &options{
+		requestBody:  true,
+		responseBody: true,
+	}
+}
 
-func LoggerOption(cfg *Conf) Option {
-	return func(opt *Options) {
-		opt.cfg = cfg
+type Option func(opt *options)
+
+func WithLogger(log Logger) Option {
+	return func(opt *options) {
+		opt.log = log
+	}
+}
+
+func WithFileName(name string) Option {
+	return func(opt *options) {
+		opt.filename = name
+	}
+}
+
+func WithRequestBody(t bool) Option {
+	return func(opt *options) {
+		opt.requestBody = t
+	}
+}
+
+func WithResponseBody(t bool) Option {
+	return func(opt *options) {
+		opt.responseBody = t
 	}
 }

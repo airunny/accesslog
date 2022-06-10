@@ -1,21 +1,20 @@
 package accesslog
 
 import (
-	"bytes"
 	"fmt"
-	"github.com/golang/glog"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/enriquebris/goconcurrentqueue"
+	"github.com/golang/glog"
 )
 
-// the max log size
+// MaxLogFileSize the max log size
 const MaxLogFileSize int64 = 1024 * 1024 * 1800
 
-type logger interface {
-	Log(buf *bytes.Buffer) error
+type Logger interface {
+	Log([]byte) error
 	Close() error
 	QueueBufferSize() int
 }
@@ -28,14 +27,14 @@ type asyncFileLogger struct {
 	sizeNum  int64
 }
 
-func newAsyncFileLogger(cfg *Conf) (logger, error) {
-	dir, _ := filepath.Split(cfg.Filename)
+func newAsyncFileLogger(filename string) (Logger, error) {
+	dir, _ := filepath.Split(filename)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := openAppendFile(cfg.Filename)
+	f, err := openAppendFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +45,7 @@ func newAsyncFileLogger(cfg *Conf) (logger, error) {
 	}
 
 	ret := &asyncFileLogger{
-		filename: cfg.Filename,
+		filename: filename,
 		file:     f,
 		queue:    goconcurrentqueue.NewFIFO(),
 		close:    make(chan struct{}),
@@ -62,8 +61,8 @@ func openAppendFile(fileName string) (*os.File, error) {
 	return os.OpenFile(fileName, os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.ModeAppend|0666)
 }
 
-func (l *asyncFileLogger) Log(buf *bytes.Buffer) error {
-	return l.queue.Enqueue(buf)
+func (l *asyncFileLogger) Log(data []byte) error {
+	return l.queue.Enqueue(data)
 }
 
 func (l *asyncFileLogger) loop() {
@@ -74,22 +73,21 @@ func (l *asyncFileLogger) loop() {
 		default:
 		}
 
-		buf, err := l.queue.Dequeue()
+		data, err := l.queue.Dequeue()
 		if err != nil {
 			time.Sleep(time.Millisecond * 10)
 			continue
 		}
-		l.writeFile(buf.(*bytes.Buffer))
+		l.writeFile(data.([]byte))
 	}
 }
 
-func (l *asyncFileLogger) writeFile(buf *bytes.Buffer) {
-	if int64(buf.Len())+l.sizeNum > MaxLogFileSize {
+func (l *asyncFileLogger) writeFile(data []byte) {
+	if int64(len(data))+l.sizeNum > MaxLogFileSize {
 		l.rotateLog()
 	}
 
-	n, err := l.file.Write(buf.Bytes())
-	logBufPool.Put(buf)
+	n, err := l.file.Write(data)
 	if err != nil {
 		panic("cannot write access log")
 	}
@@ -98,8 +96,8 @@ func (l *asyncFileLogger) writeFile(buf *bytes.Buffer) {
 }
 
 func (l *asyncFileLogger) rotateLog() {
-	l.file.Sync()
-	l.file.Close()
+	_ = l.file.Sync()
+	_ = l.file.Close()
 	err := os.Rename(l.filename, fmt.Sprintf("%s-%s", l.filename, time.Now().Format("20060102150405")))
 	if err != nil {
 		panic("fail to rotate log")
@@ -126,11 +124,11 @@ func (l *asyncFileLogger) Close() error {
 	l.close <- struct{}{}
 
 	for {
-		buf, err := l.queue.Dequeue()
+		data, err := l.queue.Dequeue()
 		if err != nil {
 			goto Done
 		}
-		l.writeFile(buf.(*bytes.Buffer))
+		l.writeFile(data.([]byte))
 	}
 
 Done:
@@ -138,15 +136,15 @@ Done:
 	return l.file.Close()
 }
 
-// glog
+// GlogLogger glog
 type GlogLogger struct{}
 
-func newGlogLogger() logger {
+func newGlogLogger() Logger {
 	return GlogLogger{}
 }
 
-func (g GlogLogger) Log(buf *bytes.Buffer) error {
-	glog.Info(buf.String())
+func (g GlogLogger) Log(data []byte) error {
+	glog.Info(string(data))
 	return nil
 }
 

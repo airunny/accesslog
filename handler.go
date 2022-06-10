@@ -2,14 +2,12 @@ package accesslog
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -19,79 +17,41 @@ const (
 )
 
 var (
-	logBufPool = sync.Pool{
-		New: func() interface{} {
-			return bytes.NewBuffer(make([]byte, 0, logBufMax))
-		},
-	}
-
-	bodyBufPool = sync.Pool{
-		New: func() interface{} {
-			return bytes.NewBuffer(make([]byte, 0, bodyBufMax))
-		},
-	}
-
-	logging  logger
-	reqBody  int32 = 0
-	respBody int32 = 0
+	logging Logger
 )
 
-type Conf struct {
-	Filename     string `json:"filename"`
-	RequestBody  bool   `json:"request_body"`
-	ResponseBody bool   `json:"response_body"`
-}
-
-// switch recording request body at runtime
-func SwitchReqBody(b bool) {
-	if b {
-		atomic.StoreInt32(&reqBody, 1)
-	} else {
-		atomic.StoreInt32(&reqBody, 0)
-	}
-}
-
-// switch recording response body at runtime
-func SwitchRespBody(b bool) {
-	if b {
-		atomic.StoreInt32(&respBody, 1)
-	} else {
-		atomic.StoreInt32(&respBody, 0)
-	}
-}
-
-func SetLogging(log logger) {
-	logging = log
-}
-
 func Handler(h http.Handler, opts ...Option) http.Handler {
-	options := &Options{}
+	o := defaultOptions()
 	for _, opt := range opts {
-		opt(options)
+		opt(o)
 	}
 
 	var err error
-	if options.cfg != nil {
-		logging, err = newAsyncFileLogger(options.cfg)
+	if o.log != nil {
+		logging = o.log
+	} else if o.filename != "" {
+		logging, err = newAsyncFileLogger(o.filename)
 		if err != nil {
 			panic(err)
 		}
-
-		if options.cfg.RequestBody {
-			reqBody = 1
-		}
-
-		if options.cfg.ResponseBody {
-			respBody = 1
-		}
 	} else {
 		logging = newGlogLogger()
-		reqBody = 1
-		respBody = 1
 	}
 
 	return &handler{
 		handler: h,
+		logging: logging,
+		opts:    o,
+		logBufPool: sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, logBufMax))
+			},
+		},
+		bodyBufPool: sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, bodyBufMax))
+			},
+		},
 	}
 }
 
@@ -102,44 +62,38 @@ func Flush() error {
 	return nil
 }
 
-type HealthStat struct {
-	LoggerBufferSize int
-}
-
-func FetchHealthStat() HealthStat {
-	return HealthStat{
-		LoggerBufferSize: logging.QueueBufferSize(),
-	}
-}
-
 type handler struct {
-	handler http.Handler
+	handler     http.Handler
+	logging     Logger
+	opts        *options
+	logBufPool  sync.Pool
+	bodyBufPool sync.Pool
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 
 	// wrap req body
-	reqBodyBuf := bodyBufPool.Get().(*bytes.Buffer)
+	reqBodyBuf := h.bodyBufPool.Get().(*bytes.Buffer)
 	reqBodyBuf.Reset()
-	defer bodyBufPool.Put(reqBodyBuf)
-	reqBody := newLogReqBody(req.Body, reqBodyBuf, atomic.LoadInt32(&reqBody) == 1 && canRecordBody(req.Header))
+	defer h.bodyBufPool.Put(reqBodyBuf)
+	reqBody := newLogReqBody(req.Body, reqBodyBuf, h.opts.requestBody && canRecordBody(req.Header))
 	req.Body = reqBody
 
 	// wrap ResponseWriter
-	respBodyBuf := bodyBufPool.Get().(*bytes.Buffer)
+	respBodyBuf := h.bodyBufPool.Get().(*bytes.Buffer)
 	respBodyBuf.Reset()
-	defer bodyBufPool.Put(respBodyBuf)
+	defer h.bodyBufPool.Put(respBodyBuf)
 
-	wrapResponse := newResponseWriter(w, respBodyBuf, atomic.LoadInt32(&respBody) == 1)
+	wrapResponse := newResponseWriter(w, respBodyBuf, h.opts.responseBody)
 	h.handler.ServeHTTP(wrapResponse, req)
-	logBuf := fmtLog(req, *req.URL, start, reqBody, wrapResponse)
-	logging.Log(logBuf)
+	logBuf := h.fmtLog(req, *req.URL, start, reqBody, wrapResponse)
+	h.logging.Log(logBuf.Bytes())
 }
 
-func fmtLog(req *http.Request, u url.URL, start time.Time, wrapRequestBody logReqBody, wrapResponse logResponseWriter) *bytes.Buffer {
+func (h *handler) fmtLog(req *http.Request, u url.URL, start time.Time, wrapRequestBody logReqBody, wrapResponse logResponseWriter) *bytes.Buffer {
 	elapsed := time.Now().Sub(start)
-	buf := logBufPool.Get().(*bytes.Buffer)
+	buf := h.logBufPool.Get().(*bytes.Buffer)
 	buf.Reset()
 
 	// now
@@ -178,8 +132,7 @@ func fmtLog(req *http.Request, u url.URL, start time.Time, wrapRequestBody logRe
 		if req.ContentLength != int64(reqBodySize) {
 			buf.WriteString("{too large to display}")
 		} else {
-			body,_ := json.Marshal(string(wrapRequestBody.Body()))
-			buf.Write(body)
+			buf.Write(wrapRequestBody.Body())
 		}
 	} else {
 		buf.WriteString("{no data}")

@@ -2,7 +2,6 @@ package accesslog
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"os"
 	"testing"
@@ -17,11 +16,11 @@ const (
 func TestLogger(t *testing.T) {
 	ast := assert.New(t)
 	deleteTestFile()
-	l, err := newAsyncFileLogger(&Conf{Filename: testLogName})
+	l, err := newAsyncFileLogger(testLogName)
 	ast.Nil(err)
 
 	for i := 0; i < 100; i++ {
-		l.Log(bytes.NewBufferString(fmt.Sprintf("haha%d\n", i)))
+		l.Log([]byte(fmt.Sprintf("haha%d\n", i)))
 	}
 	// 由于loop异步，所以可能实际数量会小于等于100
 	ast.True(l.QueueBufferSize() > 0)
@@ -46,7 +45,7 @@ func TestLogger(t *testing.T) {
 func TestLoggerNoLog(t *testing.T) {
 	ast := assert.New(t)
 	deleteTestFile()
-	l, err := newAsyncFileLogger(&Conf{Filename: testLogName})
+	l, err := newAsyncFileLogger(testLogName)
 	ast.Nil(err)
 
 	err = l.Close()

@@ -8,8 +8,8 @@ import (
 type logResponseWriter interface {
 	http.ResponseWriter
 	StatusCode() int
-	Size() int    // write to response size
-	Body() []byte // can write log buf bytes
+	Size() int
+	Body() []byte
 }
 
 type commonLogRespWriter struct {
@@ -28,13 +28,11 @@ func newResponseWriter(w http.ResponseWriter, buf *bytes.Buffer, recordBody bool
 		firstWrite: true,
 		buf:        buf,
 		recordBody: recordBody,
+		status:     200,
 	}
 }
 
 func (c *commonLogRespWriter) StatusCode() int {
-	if c.status == 0 {
-		return 200
-	}
 	return c.status
 }
 

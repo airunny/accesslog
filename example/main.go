@@ -8,12 +8,6 @@ import (
 )
 
 func main() {
-	conf := &accesslog.Conf{
-		Filename:     "./access/example.log",
-		RequestBody:  true,
-		ResponseBody: true,
-	}
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/abc", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-type", "application/json")
@@ -24,5 +18,5 @@ func main() {
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	http.ListenAndServe(":8080", accesslog.Handler( mux,accesslog.LoggerOption(conf)))
+	http.ListenAndServe(":8080", accesslog.Handler(mux, accesslog.WithFileName("./access/example.log")))
 }
